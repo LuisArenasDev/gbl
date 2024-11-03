@@ -7,22 +7,25 @@
 * Docker
 
 
-## Build project
-- Run `mvn clean package -Dmaven.test.skip=true`
+## Build & Run instructions
+* Build project
+```
+mvn clean package -Dmaven.test.skip=true`
+```
 
 ## Setup and run using Docker
 * Create docker image
 ```
-  docker build -t device-service .
+docker build -t device-service .
 ```
 
 * Run docker-compose file
 ```
-docker-compose up --build
+docker-compose up --build -d
 ```
 
 ## Test application using Swagger
-you can test the application using swagger UI:
+you can test the application using swagger UI: 
 http://localhost:8080/swagger-ui/index.html 
 
 ## Run unit and integration tests

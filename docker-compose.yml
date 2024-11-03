@@ -5,11 +5,14 @@ services:
     image: device-service:latest # This must match the name of the image you built for your app
     container_name: device-service
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     ports:
       - "8080:8080"
     networks:
       - gbl_network
+    environment:
+      - WAIT_HOSTS=mysql:3306
   mysql:
     image: mysql:8.0
     container_name: device
@@ -25,7 +28,12 @@ services:
     networks:
       - gbl_network
     restart: always
-
+    healthcheck:
+      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
+      start_period: 5s
+      interval: 5s
+      timeout: 20s
+      retries: 10
 volumes:
   db_data:
 
