@@ -10,7 +10,7 @@
 ## Build & Run instructions
 * Build project
 ```
-mvn clean package -Dmaven.test.skip=true`
+mvn clean package -Dmaven.test.skip=true
 ```
 
 ## Setup and run using Docker

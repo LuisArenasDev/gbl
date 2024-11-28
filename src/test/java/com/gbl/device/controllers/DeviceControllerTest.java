@@ -120,7 +120,7 @@ class DeviceControllerTest {
     void testDeleteById() {
         doNothing().when(deviceService).deleteDeviceById(anyLong());
 
-        ResponseEntity<Device> response = deviceController.deleteById(1L);
+        ResponseEntity<Void> response = deviceController.deleteById(1L);
 
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
         verify(deviceService, times(1)).deleteDeviceById(1L);

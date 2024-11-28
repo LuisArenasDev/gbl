@@ -29,7 +29,7 @@ public class DeviceServiceImpl implements DeviceService {
     }
 
     @Override
-    public Device updateDevice(DeviceRecordRequestDto request, Long id) {
+    public Device updateDevice(DeviceRecordRequestDto request, Long id) throws DeviceNotFoundException{
         Device device = repository.findById(id)
                 .orElseThrow(() -> new DeviceNotFoundException("Device not found with id: " + id));
         device.setDeviceName(request.getDeviceName());
@@ -39,7 +39,7 @@ public class DeviceServiceImpl implements DeviceService {
     }
 
     @Override
-    public Device updateNonNullDeviceAttributes(DeviceRecordPatchRequestDto request, Long id) {
+    public Device updateNonNullDeviceAttributes(DeviceRecordPatchRequestDto request, Long id) throws DeviceNotFoundException{
         Device device = repository.findById(id)
                 .orElseThrow(() -> new DeviceNotFoundException("Device not found with id: " + id));
 

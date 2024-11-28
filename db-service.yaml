@@ -1,0 +1,8 @@
+# external-db-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-db
+spec:
+  type: ExternalName
+  externalName: host.minikube.internal  # Special DNS for Minikube to reach the host machine

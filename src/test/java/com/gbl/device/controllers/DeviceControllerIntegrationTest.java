@@ -1,130 +1,147 @@
 package com.gbl.device.controllers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gbl.device.dto.DeviceRecordPatchRequestDto;
 import com.gbl.device.dto.DeviceRecordRequestDto;
 import com.gbl.device.models.Device;
-import com.gbl.device.services.DeviceService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
+import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
+import java.util.Objects;
 
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-
-@WebMvcTest(DeviceController.class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureWebTestClient
+@Testcontainers
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class DeviceControllerIntegrationTest {
+    static final MySQLContainer mysqlContainer;
 
     @Autowired
-    private MockMvc mockMvc;
+    WebTestClient webTestClient;
 
-    @MockBean
-    private DeviceService deviceService;
 
-    @Autowired
-    private ObjectMapper objectMapper;
 
-    private Device device;
+    static {
+        mysqlContainer = new MySQLContainer("mysql:latest");
+        mysqlContainer.start();
+    }
 
-    @BeforeEach
-    void setUp() {
-        device = new Device();
-        device.setId(1L);
-        device.setDeviceName("Test Device");
+    @DynamicPropertySource
+    static void configureTestProperties(DynamicPropertyRegistry registry){
+        registry.add("spring.datasource.url", mysqlContainer::getJdbcUrl);
+        registry.add("spring.datasource.username", mysqlContainer::getUsername);
+        registry.add("spring.datasource.password", mysqlContainer::getPassword);
+        registry.add("spring.jpa.hibernate.ddl-auto",() -> "create");
+
     }
 
     @Test
-    void testAddDevice() throws Exception {
-        DeviceRecordRequestDto requestDto = new DeviceRecordRequestDto("TestDeviceName", "TestDeviceBrand", LocalDateTime.now());
-        when(deviceService.createDevice(any(DeviceRecordRequestDto.class))).thenReturn(device);
+    @Order(1)
+    void testAddDevice(){
+        LocalDateTime now = LocalDateTime.now();
+        DeviceRecordRequestDto requestDto = new DeviceRecordRequestDto("TestDeviceName", "TestDeviceBrand", now);
 
-        mockMvc.perform(post("/api/device/")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDto)))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.id", is(device.getId().intValue())))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.deviceName", is(device.getDeviceName())));
+        webTestClient.post()
+                .uri("/api/V1/device/")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(requestDto)
+                .exchange()
+                .expectHeader()
+                .contentType(MediaType.APPLICATION_JSON)
+                .expectStatus()
+                .isCreated()
+                .expectBody(Device.class)
+                .consumeWith(deviceEntity -> Assertions.assertNotNull(Objects.requireNonNull(deviceEntity.getResponseBody()).getId()));
     }
 
     @Test
-    void testGetDeviceById_Found() throws Exception {
-        when(deviceService.getRecordById(anyLong())).thenReturn(Optional.of(device));
-
-        mockMvc.perform(get("/api/device/{deviceId}", 1L))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.id", is(device.getId().intValue())))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.deviceName", is(device.getDeviceName())));
+    @Order(2)
+    void testGetDeviceById_Found() {
+        webTestClient.get()
+                .uri("/api/V1/device/{deviceId}", 1)
+                .exchange()
+                .expectHeader()
+                .contentType(MediaType.APPLICATION_JSON)
+                .expectStatus()
+                .isOk()
+                .expectBody(Device.class)
+                .consumeWith(deviceEntity -> Assertions.assertNotNull(Objects.requireNonNull(deviceEntity.getResponseBody()).getId()));
     }
 
     @Test
-    void testGetDeviceById_NotFound() throws Exception {
-        when(deviceService.getRecordById(anyLong())).thenReturn(Optional.empty());
-
-        mockMvc.perform(get("/api/device/{deviceId}", 1L))
-                .andExpect(MockMvcResultMatchers.status().isNotFound());
+    @Order(3)
+    void testGetDeviceById_NotFound() {
+        webTestClient.get()
+                .uri("/api/V1/device/{deviceId}", 2)
+                .exchange()
+                .expectStatus()
+                .isNotFound()
+                .expectBody(Void.class);
     }
 
     @Test
-    void testUpdateDevice() throws Exception {
-        DeviceRecordRequestDto requestDto = new DeviceRecordRequestDto("TestDeviceName", "TestDeviceBrand", LocalDateTime.now());
-        when(deviceService.updateDevice(any(DeviceRecordRequestDto.class), anyLong())).thenReturn(device);
+    @Order(4)
+    void testUpdateDevice(){
+        LocalDateTime now = LocalDateTime.now();
+        DeviceRecordRequestDto requestDto = new DeviceRecordRequestDto("TestDeviceNameUpdated", "TestDeviceBrandUpdated", now);
 
-        mockMvc.perform(put("/api/device/{deviceId}", 1L)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDto)))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.id", is(device.getId().intValue())))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.deviceName", is(device.getDeviceName())));
+        webTestClient.put()
+                .uri("/api/V1/device/{deviceId}", 1)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(requestDto)
+                .exchange()
+                .expectHeader()
+                .contentType(MediaType.APPLICATION_JSON)
+                .expectStatus()
+                .isOk()
+                .expectBody(Device.class)
+                .consumeWith(deviceEntity -> Assertions.assertNotNull(Objects.requireNonNull(deviceEntity.getResponseBody()).getId()));
     }
 
     @Test
-    void testPatchDevice() throws Exception {
-        DeviceRecordPatchRequestDto patchRequestDto = new DeviceRecordPatchRequestDto();
-        when(deviceService.updateNonNullDeviceAttributes(any(DeviceRecordPatchRequestDto.class), anyLong())).thenReturn(device);
+    @Order(5)
+    void testPatchDevice(){
+        DeviceRecordPatchRequestDto requestDto = DeviceRecordPatchRequestDto.builder().deviceName("TestDeviceNamePatched").build();
 
-        mockMvc.perform(patch("/api/device/{deviceId}", 1L)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(patchRequestDto)))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.id", is(device.getId().intValue())))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.deviceName", is(device.getDeviceName())));
+        webTestClient.patch()
+                .uri("/api/V1/device/{deviceId}", 1)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(requestDto)
+                .exchange()
+                .expectHeader()
+                .contentType(MediaType.APPLICATION_JSON)
+                .expectStatus()
+                .isOk()
+                .expectBody(Device.class)
+                .consumeWith(deviceEntity -> Assertions.assertNotNull(Objects.requireNonNull(deviceEntity.getResponseBody()).getId()));
     }
 
     @Test
-    void testListDevices() throws Exception {
-        Page<Device> page = new PageImpl<>(List.of(device));
-        when(deviceService.getAllRecordsByBrand(anyString(), anyInt(), anyInt())).thenReturn(page);
-
-        mockMvc.perform(get("/api/device/")
-                        .param("brand", "TestBrand")
-                        .param("pageSize", "10")
-                        .param("pageNo", "0"))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.content", hasSize(1)))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.content[0].id", is(device.getId().intValue())))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.content[0].deviceName", is(device.getDeviceName())));
+    @Order(6)
+    void testListDevices(){
+        webTestClient.get()
+                .uri("/api/V1/device/")
+                .exchange()
+                .expectHeader()
+                .contentType(MediaType.APPLICATION_JSON)
+                .expectStatus()
+                .isOk();
     }
-
     @Test
+    @Order(7)
     void testDeleteById() throws Exception {
-        Mockito.doNothing().when(deviceService).deleteDeviceById(anyLong());
-
-        mockMvc.perform(delete("/api/device/{deviceId}", 1L))
-                .andExpect(MockMvcResultMatchers.status().isNoContent());
+        webTestClient.delete()
+                .uri("/api/V1/device/{deviceId}", 1L)
+                .exchange()
+                .expectStatus()
+                .isNoContent();
     }
 }

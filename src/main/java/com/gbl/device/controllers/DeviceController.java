@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/V1/device/")
+@RequestMapping("/api/V1/device")
 @AllArgsConstructor
 public class DeviceController {
 
@@ -30,7 +30,7 @@ public class DeviceController {
             @ApiResponse(responseCode = "200", description = "Successfully created"),
     })
     public ResponseEntity<Device> addDevice(@Valid @RequestBody DeviceRecordRequestDto request) {
-        return new ResponseEntity<>(deviceService.createDevice(request), HttpStatus.OK);
+        return new ResponseEntity<>(deviceService.createDevice(request), HttpStatus.CREATED);
     }
 
     @GetMapping("/{deviceId}")
@@ -86,9 +86,9 @@ public class DeviceController {
     @DeleteMapping("/{deviceId}")
     @Operation(summary = "Delete device by Id", description = "Delete a device record by Id")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully deleted"),
+            @ApiResponse(responseCode = "204", description = "Successfully deleted"),
     })
-    public ResponseEntity<Device> deleteById(@PathVariable("deviceId") @NotNull Long id) {
+    public ResponseEntity<Void> deleteById(@PathVariable("deviceId") @NotNull Long id) {
         deviceService.deleteDeviceById(id);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
